@@ -1,0 +1,21 @@
+{
+  "name": "lpheller/crawli",
+  "description": "Url crawler and sitemap generator",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Lukas Heller",
+      "email": "dev@lukas-heller.de"
+    }
+  ],
+  "require": {
+    "php": ">=8.0",
+    "illuminate/collections": "^9.10"
+  },
+  "autoload": {
+    "psr-4": {
+      "Lpheller\\Crawli\\": "src/"
+    }
+  }
+}
