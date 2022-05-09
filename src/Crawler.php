@@ -4,56 +4,90 @@ namespace Lpheller\Crawli;
 
 class Crawler
 {
+    /**
+     * Array of links found.
+     *
+     * @var array
+     */
     protected $links = [];
-    protected $host;
-    protected $scheme;
-    protected $startTime = 0;
+
+    /**
+     * The full baseUrl for the currently crawled site.
+     *
+     * @var [type]
+     */
     protected $baseUrl;
 
+    /**
+     * The host of the baseUrl currently crawled.
+     *
+     * @var string
+     */
+    protected $host;
+
+    /**
+     * A counter to track the running time.
+     *
+     * @var int
+     */
+    protected $startTime = 0;
+
+    /**
+     * Determine the maximum time to crawl the page.
+     *
+     * @var int|null
+     */
+    protected $timeout = 60;
+
+    /**
+     * Array of default strings to block when found in a page url.
+     *
+     * @var array
+     */
+    protected $blacklist = [
+        'mailto:',
+        'javascript:',
+        '.pdf',
+        'storage',
+        'index.php',
+        'tel:',
+        '#',
+    ];
+
+    /**
+     * Default Useragent to be used for crawling pages.
+     *
+     * @var string
+     */
+    protected $userAgent = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
+
+    /**
+     * Array to keep track of already crawled links.
+     *
+     * @var array
+     */
+    protected $crawled = [];
+
+    /**
+     * Create a new Instance of the crawler.
+     */
     public function __construct()
     {
-        $this->blacklist = [
-            'mailto:',
-            'javascript:',
-            '.pdf',
-            'storage',
-            'index.php',
-            'tel:',
-            '#'
-        ];
-        $this->userAgent = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
-
-        $this->timeout = 60;
-
         $this->startTime = microtime(true);
-
-        $this->crawled = [];
     }
 
     /**
      * Start the crawler at a given entry point.
      *
-     * @param String $url
+     * @param  string $url
      * @return self
      */
-    public function crawl(String $url)
+    public function crawl(string $url)
     {
         $this->setBaseUrl($url);
         $this->host = parse_url($url)['host'];
         $this->parse($url);
 
-        return $this;
-    }
-
-    /**
-     * Sets the baseUrl.
-     *
-     * @param string $url
-     * @return self
-     */
-    public function setBaseUrl(string $url)
-    {
-        $this->baseUrl = $url;
         return $this;
     }
 
@@ -68,32 +102,80 @@ class Crawler
     }
 
     /**
-    * Fetch page using CURL
-    *
-    * @param $url
-    * @return mixed
-    */
-    protected function fetch($url)
+     * Check the current running time do determine if the
+     * crawling should be aborted before.
+     *
+     * @return void
+     */
+    public function getTimeRunning()
     {
-        $options = [
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_USERAGENT      => $this->userAgent,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_HEADER         => false,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_ENCODING       => "",
-            CURLOPT_AUTOREFERER    => true,
-            CURLOPT_CONNECTTIMEOUT => 60,
-            CURLOPT_TIMEOUT        => 60,
-            CURLOPT_MAXREDIRS      => 10
-        ];
+        return microtime(true) - $this->startTime;
+    }
 
-        $curlHandle = curl_init($url);
-        curl_setopt_array($curlHandle, $options);
-        $content = curl_exec($curlHandle);
-        curl_close($curlHandle);
+    /**
+     * Sets the baseUrl.
+     *
+     * @param  string $url
+     * @return self
+     */
+    public function setBaseUrl(string $url)
+    {
+        $this->baseUrl = $url;
 
-        return $content;
+        return $this;
+    }
+
+    /**
+     * Add a string or array of strings to the list of blocked strings.
+     * All crawled links will be matched agains this list to determine
+     * if a link should be indexed or is skipped.
+     *
+     * @param  array|string $value
+     * @param  bool         $override
+     * @return self
+     */
+    public function setBlacklist(array|string $value, $override = false)
+    {
+        if (is_array($value) && $override) {
+            $this->blacklist = $value;
+        }
+
+        if (is_array($value) && ! $override) {
+            $this->blacklist = array_merge($this->blacklist, $value);
+        }
+
+        if (is_string($value)) {
+            $this->blacklist[] = $value;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Sets the user agent used to crawl pages.
+     * The default is set as google bot.
+     *
+     * @param  string $value
+     * @return self
+     */
+    public function setUserAgent(string $value)
+    {
+        $this->userAgent = $value;
+
+        return $this;
+    }
+
+    /**
+     * Configure timeout dynamically. Value in seconds or null to not use any timeout.
+     *
+     * @param  int|null $timeout
+     * @return void
+     */
+    public function setTimeout($timeout)
+    {
+        $this->timeout = $timeout;
+
+        return $this;
     }
 
     /**
@@ -127,7 +209,6 @@ class Crawler
 
         $this->crawled[] = $url;
 
-
         // Start at 0.
         // Index the first page, find 10 links.
         // 10 > 0 => parse each of the found links.
@@ -151,88 +232,40 @@ class Crawler
     }
 
     /**
-     * Add a string or array of strings to the list of blocked strings.
-     * All crawled links will be matched agains this list to determine
-     * if a link should be indexed or is skipped.
+     * Fetch page using CURL.
      *
-     * @param array|string $value
-     * @param boolean $override
-     * @return self
+     * @param $url
+     * @return mixed
      */
-    public function setBlacklist(array|string $value, $override = false)
+    protected function fetch($url)
     {
-        if (is_array($value) && $override) {
-            $this->blacklist = $value;
-        }
+        $options = [
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_USERAGENT      => $this->userAgent,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_HEADER         => false,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_ENCODING       => '',
+            CURLOPT_AUTOREFERER    => true,
+            CURLOPT_CONNECTTIMEOUT => 60,
+            CURLOPT_TIMEOUT        => 60,
+            CURLOPT_MAXREDIRS      => 10,
+        ];
 
-        if (is_array($value) && !$override) {
-            $this->blacklist = array_merge($this->blacklist, $value);
-        }
+        $curlHandle = curl_init($url);
+        curl_setopt_array($curlHandle, $options);
+        $content = curl_exec($curlHandle);
+        curl_close($curlHandle);
 
-        if (is_string($value)) {
-            $this->blacklist[] = $value;
-        }
-
-        return $this;
-    }
-
-
-    /**
-     * Sets the user agent used to crawl pages.
-     * The default is set as google bot.
-     *
-     * @param string $value
-     * @return self
-     */
-    public function setUserAgent(string $value)
-    {
-        $this->userAgent = $value;
-
-        return $this;
-    }
-
-
-    /**
-     * Check the current running time do determine if the
-     * crawling should be aborted before
-     *
-     * @return void
-     */
-    public function getTimeRunning()
-    {
-        return (microtime(true) - $this->startTime);
-    }
-
-
-    /**
-     * Determine if an url was previously crawled.
-     *
-     * @param string $url
-     * @return void
-     */
-    protected function wasPrivouslyCrawled(string $url)
-    {
-        return in_array($url, $this->crawled);
+        return $content;
     }
 
     /**
-     * Configure timeout dynamically. Value in seconds or null to not use any timeout.
+     * Dtermine if the crawling should be aborted based on the running time.
      *
-     * @param int|null $timeout
-     * @return void
+     * @return bool
      */
-    public function setTimeout($timeout)
-    {
-        $this->timeout = $timeout;
-        return $this;
-    }
-
-    /**
-     * Dtermine if the crawling should be aborted based on the running time
-     *
-     * @return boolean
-     */
-    public function shouldReturnBeforeTimeout()
+    protected function shouldReturnBeforeTimeout()
     {
         if ($this->timeout == null) {
             return false;
@@ -242,9 +275,20 @@ class Crawler
     }
 
     /**
+     * Determine if an url was previously crawled.
+     *
+     * @param  string $url
+     * @return void
+     */
+    protected function wasPrivouslyCrawled(string $url)
+    {
+        return in_array($url, $this->crawled);
+    }
+
+    /**
      * Returns a full url link.
      *
-     * @param string $value
+     * @param  string $value
      * @return string fullUrl
      */
     protected function getFullUrl(string $value)
@@ -254,27 +298,26 @@ class Crawler
         }
 
         $blacklisted = implode('|', $this->blacklist);
-        if (preg_match("/(".$blacklisted.")/i", $value)) {
+        if (preg_match('/(' . $blacklisted . ')/i', $value)) {
             return $value;
         }
 
         $url = parse_url($value);
 
-        if (!array_key_exists('path', $url)) {
+        if (! array_key_exists('path', $url)) {
             return $value;
         }
 
         // by only using the path, we automatically get rid of page parameters
         // that should not be relevant for us right now.
-        return $this->baseUrl .'/'. rtrim($url['path'], '/');
+        return $this->baseUrl . '/' . rtrim($url['path'], '/');
     }
-
 
     /**
      * Determine if a link should be crawled and indexed.
      *
-     * @param string $link
-     * @return boolean
+     * @param  string $link
+     * @return bool
      */
     protected function shouldBeIndexed($link)
     {
@@ -284,12 +327,12 @@ class Crawler
 
         // Skip links containing blacklisted elements.
         $blacklisted = implode('|', $this->blacklist);
-        if (preg_match("/(".$blacklisted.")/i", $link)) {
+        if (preg_match('/(' . $blacklisted . ')/i', $link)) {
             return false;
         }
 
         // skip links, that don't start with the same url as provided for baseurl
-        if (!str_contains($link, $this->baseUrl)) {
+        if (! str_contains($link, $this->baseUrl)) {
             return false;
         }
 
@@ -304,15 +347,15 @@ class Crawler
     /**
      * Determines if a given url is linking to an external page.
      *
-     * @param String $url
-     * @return boolean
+     * @param  string $url
+     * @return bool
      */
-    public function isExternalLink(String $url)
+    protected function isExternalLink(string $url)
     {
         $link = parse_url($url);
 
         // no host exists, most likely an internal link
-        if (!array_key_exists('host', $link)) {
+        if (! array_key_exists('host', $link)) {
             return false;
         }
 
