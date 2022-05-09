@@ -38,15 +38,22 @@ class Crawler
      */
     public function crawl(String $url)
     {
+        $this->setBaseUrl($url);
         $this->host = parse_url($url)['host'];
-        $this->scheme = array_key_exists('scheme', parse_url($url))
-                        ? parse_url($url)['scheme']
-                        : 'http';
-        $this->baseUrl = $url;
-
-
         $this->parse($url);
 
+        return $this;
+    }
+
+    /**
+     * Sets the baseUrl.
+     *
+     * @param string $url
+     * @return self
+     */
+    public function setBaseUrl(string $url)
+    {
+        $this->baseUrl = $url;
         return $this;
     }
 
@@ -259,7 +266,7 @@ class Crawler
 
         // by only using the path, we automatically get rid of page parameters
         // that should not be relevant for us right now.
-        return $this->scheme . '://'. $this->host . rtrim($url['path'], '/');
+        return $this->baseUrl .'/'. rtrim($url['path'], '/');
     }
 
 
