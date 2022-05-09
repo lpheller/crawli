@@ -254,13 +254,12 @@ class Crawler
         $url = parse_url($value);
 
         if (!array_key_exists('path', $url)) {
-            var_dump($url);
             return $value;
         }
 
         // by only using the path, we automatically get rid of page parameters
         // that should not be relevant for us right now.
-        return $this->scheme . '://'. $this->host . $url['path'];
+        return $this->scheme . '://'. $this->host . rtrim($url['path'], '/');
     }
 
 
