@@ -165,7 +165,7 @@ class Crawler
             $this->blacklist = $value;
         }
 
-        if (is_array($value)) {
+        if (is_array($value) && !$override) {
             $this->blacklist = array_merge($this->blacklist, $value);
         }
 
