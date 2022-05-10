@@ -86,7 +86,10 @@ class Crawler
     {
         $this->setBaseUrl($url);
         $this->host = parse_url($url)['host'];
+        $this->scheme = parse_url($url)['scheme'];
         $this->parse($url);
+
+        sort($this->links);
 
         return $this;
     }
@@ -310,7 +313,7 @@ class Crawler
 
         // by only using the path, we automatically get rid of page parameters
         // that should not be relevant for us right now.
-        return $this->baseUrl . '/' . rtrim($url['path'], '/');
+        return $this->scheme .'://'. $this->host . rtrim($url['path'], '/');
     }
 
     /**
